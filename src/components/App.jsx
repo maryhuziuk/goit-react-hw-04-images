@@ -13,7 +13,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 
 export const App = () => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(null);
   const [images, setImages] = useState([]);
   const [page, setPage] = useState(1);
   const [totalImages, setTotalImages] = useState(0);
@@ -22,6 +22,19 @@ export const App = () => {
 
   useEffect(() => {
     const { type, message } = notification;
+    const handleNotification = () => {
+      const { type, message } = notification;
+      if (type === 'info') {
+        toast.info(message);
+      }
+      else if (type === 'error') {
+        toast.error(message);
+      }
+      else if (type === 'success') {
+        toast.success(message);
+      }
+  
+    };
 
     if (type && message) {
       handleNotification();
@@ -29,24 +42,51 @@ export const App = () => {
   }, [notification]);
 
   useEffect(() => {
+    const addImages = async () => {
+      if (query === null)
+        return
+      
+      setStatus('pending' );
+    
+        try {
+          const { images: newImages, totalImages: newTotalImages } = await fetchImages(query, page);
+    
+          if (newImages.length === 0) {
+            setNotification({
+              type: 'error',
+              message: 'Sorry, there are no images matching your search query. Please try again.',
+            });
+          }
+          if (newImages.length !== 0 && page === 1) {
+            setNotification ({
+                type: 'success',
+                message: `Hooray! We found ${newTotalImages} images.`,
+            });
+          }
+    
+          if (newTotalImages > 0 && page !== 1 && newTotalImages <= page*12 + 1) {
+            setNotification({
+              type: 'info',
+              message: 'You have reached the end of search results.',
+            });
+          }
+    
+          setImages(prevImages => [...prevImages, ...newImages]);
+          setStatus('resolved');
+          setTotalImages(newTotalImages);
+        }  catch (error) {
+          console.log(error.message);
+          setNotification({
+            type: 'error',
+            message: 'There are some problems! Try again later.',
+          });
+          setStatus('rejected');
+        }
+      };
+    
     addImages();
-  }, [query, page]);
+  }, [page, query]);
 
-
- const handleNotification = () => {
-    const { type, message } = notification;
-    if (type === 'info') {
-      toast.info(message);
-    }
-    else if (type === 'error') {
-      toast.error(message);
-    }
-    else if (type === 'success') {
-      toast.success(message);
-    }
-
-    setNotification({ type: '', message: '' });
-  };
 
   const handleSearch = value => {
     if (!value) {
@@ -76,45 +116,6 @@ export const App = () => {
     setStatus('idle');
   };
 
- const addImages = async () => {
-  setStatus('pending' );
-
-    try {
-      const { images: newImages, totalImages: newTotalImages } = await fetchImages(query, page);
-
-      if (newImages.length === 0) {
-        setNotification({
-          type: 'error',
-          message: 'Sorry, there are no images matching your search query. Please try again.',
-        });
-      }
-      if (newImages.length !== 0 && page === 1) {
-        setNotification ({
-            type: 'success',
-            message: `Hooray! We found ${newTotalImages} images.`,
-        });
-      }
-
-      if (newTotalImages > 0 && page !== 1 && newTotalImages <= images.length + 12) {
-        setNotification({
-          type: 'info',
-          message: 'You have reached the end of search results.',
-        });
-      }
-
-
-      setImages(prevImages => [...prevImages, ...newImages]);
-      setStatus('resolved');
-      setTotalImages(newTotalImages);
-    }  catch (error) {
-      console.log(error.message);
-      setNotification({
-        type: 'error',
-        message: 'There are some problems! Try again later.',
-      });
-      setStatus('rejected');
-    }
-  };
 
  const onLoadMore = () => {
   setPage(prevPage => prevPage + 1);
