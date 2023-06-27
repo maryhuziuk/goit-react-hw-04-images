@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import { fetchImages } from 'api/api.servises';
 import { Searchbar } from './Searchbar/Searchbar';
 import { ImageGallery } from './ImageGallery/ImageGallery';
@@ -12,147 +12,114 @@ import 'react-toastify/dist/ReactToastify.css';
 
 
 
-export class App extends Component {
-  state = {
-    query: '',
-    images: [],
-    page: 1,
-    totalImages: 0,
-    status: 'idle', 
-    notification: { type: '', message: '' }, 
-  };
+export const App = () => {
+  const [query, setQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalImages, setTotalImages] = useState(0);
+  const [status, setStatus] = useState('idle');
+  const [notification, setNotification] = useState({ type: '', message: '' });
 
-  componentDidUpdate(_, prevState) {
-    const { query, page, notification } = this.state;
-    const { addImages, handleNotification } = this;
+  useEffect(() => {
+    const { type, message } = notification;
 
-    if (prevState.query !== query || prevState.page !== page) {
-      addImages();
-    }
-
-    if (notification.type && notification.message) {
+    if (type && message) {
       handleNotification();
     }
-  }
+  }, [notification]);
 
-  handleNotification = () => {
-    const notificationType = this.state.notification.type;
-    const notificationMessage = this.state.notification.message;
+  useEffect(() => {
+    addImages();
+  }, [query, page]);
 
-    if (notificationType === 'info') {
-      toast.info(notificationMessage);
+
+ const handleNotification = () => {
+    const { type, message } = notification;
+    if (type === 'info') {
+      toast.info(message);
     }
-    else if (notificationType === 'error') {
-      toast.error(notificationMessage);
+    else if (type === 'error') {
+      toast.error(message);
     }
-    else if (notificationType === 'success') {
-      toast.success(notificationMessage);
+    else if (type === 'success') {
+      toast.success(message);
     }
 
-    this.setState({
-      notification: { type: '', message: '' },
-    });
+    setNotification({ type: '', message: '' });
   };
 
-  handleSearch = value => {
+  const handleSearch = value => {
     if (!value) {
-      this.setState({
-        notification: {
+      setNotification({
           type: 'info',
           message: 'Please enter your search query!',
-        },
       });
       return;
     }
 
-    if (value === this.state.query) {
-      this.setState({
-        notification: {
+    if (value === query) {
+      setNotification({
           type: 'info',
           message:
             'You are seeing the images by this query. Please, change your query.',
-        },
       });
       return;
     }
 
-    this.setState({
-      query: value,
-      images: [],
-      page: 1,
-      notification: {
-        type: '',
-        message: '',
-      },
-      status: 'idle',
+    setQuery(value);
+    setImages([]);
+    setPage(1);
+    setNotification({
+      type: '',
+      message: '',
     });
+    setStatus('idle');
   };
 
-  addImages = async () => {
-    const { query, page } = this.state;
-
-    this.setState({ status: 'pending' });
+ const addImages = async () => {
+  setStatus('pending' );
 
     try {
-      const { images, totalImages } = await fetchImages(query, page);
+      const { images: newImages, totalImages: newTotalImages } = await fetchImages(query, page);
 
-      if (images.length === 0) {
-        this.setState({
-          notification: {
-            type: 'error',
-            message:
-              'Sorry, there are no images matching your search query. Please try again.',
-          },
-        });
-      }
-      if (images.length !== 0 && page === 1) {
-        this.setState({
-          notification: {
-            type: 'success',
-            message: `Hooray! We found ${totalImages} images.`,
-          },
-        });
-      }
-
-      if (
-        totalImages > 0 &&
-        page !== 1 &&
-        totalImages <= this.state.images.length + 12
-      ) {
-        this.setState({
-          notification: {
-            type: 'info',
-            message: 'You have reached the end of search results.',
-          },
-        });
-      }
-
-      this.setState(prevState => ({
-        images: [...prevState.images, ...images],
-        status: 'resolved',
-        totalImages,
-      }));
-    } catch (error) {
-      console.log(error.message);
-      this.setState({
-        notification: {
+      if (newImages.length === 0) {
+        setNotification({
           type: 'error',
-          message: 'There are some problems! Try again later.',
-        },
-        status: 'rejected',
+          message: 'Sorry, there are no images matching your search query. Please try again.',
+        });
+      }
+      if (newImages.length !== 0 && page === 1) {
+        setNotification ({
+            type: 'success',
+            message: `Hooray! We found ${newTotalImages} images.`,
+        });
+      }
+
+      if (newTotalImages > 0 && page !== 1 && newTotalImages <= images.length + 12) {
+        setNotification({
+          type: 'info',
+          message: 'You have reached the end of search results.',
+        });
+      }
+
+
+      setImages(prevImages => [...prevImages, ...newImages]);
+      setStatus('resolved');
+      setTotalImages(newTotalImages);
+    }  catch (error) {
+      console.log(error.message);
+      setNotification({
+        type: 'error',
+        message: 'There are some problems! Try again later.',
       });
+      setStatus('rejected');
     }
   };
 
-  onLoadMore = () => {
-    this.setState(({ page }) => ({
-      page: page + 1,
-    }));
-  };
+ const onLoadMore = () => {
+  setPage(prevPage => prevPage + 1);
+};
 
-  render() {
-    const { images, status, page, totalImages } = this.state;
-    const { handleSearch, onLoadMore } = this;
 
     return (
       <StyledApp>
@@ -173,4 +140,3 @@ export class App extends Component {
       </StyledApp>
     );
   }
-}
